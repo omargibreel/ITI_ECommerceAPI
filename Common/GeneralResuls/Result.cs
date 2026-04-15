@@ -8,8 +8,6 @@ namespace Common.Result
 {
     namespace Ecommerce.BLL.Results
     {
-
-
         public class Result
         {
             public bool IsSuccess { get; set; }
