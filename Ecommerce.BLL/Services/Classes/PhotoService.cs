@@ -1,21 +1,71 @@
-﻿using Common.Result.Ecommerce.BLL.Results;
+﻿using Common.Image;
+using Common.Result.Ecommerce.BLL.Results;
 using Ecommerce.BLL.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Microsoft.Extensions.Options;
+using System.Runtime;
+using static System.Net.Mime.MediaTypeNames;
+
 
 namespace Ecommerce.BLL.Services.Classes
 {
     public class PhotoService : IPhotoService
     {
-        public Task<Result<string>> UploadAsync(IFormFile file, string folder)
+        private readonly ImageSettings _setting;
+        public PhotoService(IOptions<ImageSettings> options)
         {
-            throw new NotImplementedException();
+            _setting = options.Value;
+        }
+        public async Task<Result<string>> UploadAsync(IFormFile file, string folder)
+        {
+            if (file == null || file.Length == 0)
+                return Result<string>.ValidationFail("File is empty or null.");
+
+            if (file.Length > _setting.MaxFileSize)
+                return Result<string>.ValidationFail($"File size exceeds the maximum limit of {_setting.MaxFileSize / 1024 / 1024} MB.");
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!_setting.AllowedExtensions.Contains(extension))
+                return Result<string>.ValidationFail($"File type {extension} is not allowed. Allowed types: {string.Join(", ", _setting.AllowedExtensions)}.");
+
+            try
+            {
+                var uploadFolder = Path.Combine(_setting.UploadBasePath, folder);
+                Directory.CreateDirectory(uploadFolder);
+                var uniqueName = $"{Guid.NewGuid()}{extension}";
+                var fullPath = Path.Combine(uploadFolder, uniqueName);
+
+                await using(var stream = new FileStream(fullPath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+                return Result<string>.Success($"/images/{folder}/{uniqueName}");
+            }
+            catch (Exception ex)
+            {
+
+                return Result<string>.FailOperation($"Upload failed: {ex.Message}");
+            }
         }
         public Task<Result> DeleteAsync(string relativePath)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(relativePath))
+                return Task.FromResult(Result.Success());
+
+            try
+            {
+                var trimmed = relativePath.TrimStart('/')
+                    .Replace('/', Path.DirectorySeparatorChar);
+                var fullPath = Path.Combine(_setting.UploadBasePath, trimmed);
+
+                if (File.Exists(fullPath)) File.Delete(fullPath);
+                return Task.FromResult(Result.Success());
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(
+                    Result.FailOperation($"Delete failed: {ex.Message}"));
+            }
         }
     }
 }
