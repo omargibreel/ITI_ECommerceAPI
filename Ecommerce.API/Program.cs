@@ -69,7 +69,7 @@ builder.Services.AddAuthentication(opt =>
 });
 
 // ── CORS ───────────────────────────────────────────────────────────
-builder.Services.AddCors(opt => opt.AddPolicy("AllowFrontend", policy =>
+builder.Services.AddCors(opt => opt.AddPolicy("AllowAllOrigins", policy =>
     policy.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
         ?? new[] { "http://localhost:3000" })
           .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
@@ -106,7 +106,7 @@ await app.SeedRolesAndUsersAsync();
 
 app.UseStaticFiles();
 app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
+app.UseCors("AllowAllOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
