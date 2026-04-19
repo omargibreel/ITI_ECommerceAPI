@@ -1,0 +1,1502 @@
+
+#################### Common ####################
+
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Common\GeneralResuls\Error.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Common.GeneralResuls
+{
+    public record Error(string Code, string Message, string? Field = null)
+    {
+        public static Error None = new Error(string.Empty, string.Empty);
+        public static Error NotFound(string entity, object id)
+            => new Error($"{entity}.NotFound", $"{entity} with id {id} was not found.");
+        public static Error Validation(string field, string message)
+            => new Error("Validation.Failed", message, field);
+        public static Error Validation(string message)
+            => new Error("Validation.Failed", message);
+        public static Error Conflict(string message)
+            => new Error("Conflict", message);
+        public static Error OperationFailed(string message)
+            => new Error("Operation.Failed", message);
+        public static Error Unauthorized()
+            => new("Auth.Unauthorized", "You are not authorized to perform this action.");
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Common\GeneralResuls\Result.cs -----
+
+using Common.GeneralResuls;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Text.Json.Serialization;
+
+namespace Common.Result
+{
+    namespace Ecommerce.BLL.Results
+    {
+        public class Result
+        {
+            public bool IsSuccess { get; set; }
+            public bool IsFailuer => !IsSuccess;
+
+            //=======================================================================================================================
+
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public IReadOnlyList<Error>? Errors { get; set; }
+
+            //=======================================================================================================================
+
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public Dictionary<string, List<string>>? FieldErrors =>
+                Errors == null || !Errors.Any(e => e.Field != null)
+                ? null
+                : Errors.Where(e => e.Field != null)
+                .GroupBy(e => e.Field)
+                .ToDictionary(g => g.Key, g => g.Select(e => e.Message).ToList());
+
+            //=======================================================================================================================
+
+
+            private Result(IReadOnlyList<Error> errors, bool isSuccess)
+            {
+                Errors = errors;
+                IsSuccess = isSuccess;
+            }
+
+
+            public static Result Success()
+                => new(Array.Empty<Error>(), true);
+
+            public static Result Fail(Error error)
+                => new(new[] { error }, false);
+
+            public static Result Fail(IReadOnlyList<Error> errors)
+                => new(errors, false);
+
+            public static Result NotFound(string entity, object id)
+                => Fail(Error.NotFound(entity, id));
+
+            public static Result FailOperation(string message)
+                => Fail(Error.OperationFailed(message));
+
+            public static Result ValidationFail(IReadOnlyList<Error> errors)
+                => Fail(errors);
+
+        }
+
+
+
+        public class Result<T> where T : class
+        {
+
+            public bool IsSuccess { get; }
+            public bool IsFailure => !IsSuccess;
+
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public T? Value { get; }
+
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public IReadOnlyList<Error>? Errors { get; }
+
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public Dictionary<string, List<string>>? FieldErrors =>
+                Errors == null || !Errors.Any(e => e.Field != null)
+                    ? null
+                    : Errors
+                        .Where(e => e.Field != null)
+                        .GroupBy(e => e.Field!)
+                        .ToDictionary(g => g.Key, g => g.Select(e => e.Message).ToList());
+            private Result(T? value, IReadOnlyList<Error> errors, bool isSuccess)
+            {
+                Value = value;
+                Errors = errors;
+                IsSuccess = isSuccess;
+            }
+
+
+            public static Result<T> Success(T value)
+                => new(value, Array.Empty<Error>(), true);
+
+            public static Result<T> Fail(Error error)
+                => new(null, new[] { error }, false);
+
+            public static Result<T> Fail(IReadOnlyList<Error> errors)
+                => new(null, errors, false);
+
+            public static Result<T> NotFound(string entity, object id)
+                => Fail(Error.NotFound(entity, id));
+
+            public static Result<T> FailOperation(string message)
+                => Fail(Error.OperationFailed(message));
+
+            public static Result<T> ValidationFail(string message)
+                => Fail(Error.Validation(message));
+
+            public static Result<T> ValidationFail(IReadOnlyList<Error> errors)
+                => Fail(errors);
+        }
+
+
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Common\Image\ImageSettings.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Common.Image
+{
+    public class ImageSettings
+    {
+        public string UploadBasePath { get; set; } = null!;
+        public long MaxFileSize { get; set; } = 5 * 1024 * 1024; // 5 MB
+        public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".webp" };
+    }
+}
+
+#################### Ecommerce.API ####################
+
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.API\Controllers\WeatherForecastController.cs -----
+
+using Microsoft.AspNetCore.Mvc;
+
+namespace Ecommerce.API.Controllers
+{
+    [ApiController]
+    [Route("[controller]")]
+    public class WeatherForecastController : ControllerBase
+    {
+        private static readonly string[] Summaries =
+        [
+            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+        ];
+
+        [HttpGet(Name = "GetWeatherForecast")]
+        public IEnumerable<WeatherForecast> Get()
+        {
+            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            {
+                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
+                TemperatureC = Random.Shared.Next(-20, 55),
+                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
+            })
+            .ToArray();
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.API\Program.cs -----
+
+using Common.Image;
+using Ecommerce.BLL;
+using Ecommerce.DAL;
+using Ecommerce.DAL.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+
+var wwwrootPath = builder.Environment.WebRootPath
+    ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+
+Directory.CreateDirectory(wwwrootPath);
+
+// Add services to the container.
+
+builder.Services.AddControllers();
+// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddOpenApi();
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+//builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(IGenericRepository<>));
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+
+
+builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
+
+
+builder.Services.Configure<ImageSettings>(options =>
+{
+    options.UploadBasePath = Path.Combine(wwwrootPath, "images");
+    options.MaxFileSize = 5 * 1024 * 1024;
+    options.AllowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
+
+app.UseHttpsRedirection();
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.API\WeatherForecast.cs -----
+
+namespace Ecommerce.API
+{
+    public class WeatherForecast
+    {
+        public DateOnly Date { get; set; }
+
+        public int TemperatureC { get; set; }
+
+        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+
+        public string? Summary { get; set; }
+    }
+}
+
+#################### Ecommerce.BLL ####################
+
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Auth\AuthDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Auth
+{
+    public class AuthDTO
+    {
+        public string Token { get; set; } = null!;
+        public string Email { get; set; } = null!;
+        public string FullName { get; set; } = null!;
+        public DateTime Expiry { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Auth\LoginDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Auth
+{
+    public class LoginDTO
+    {
+        public string Email { get; set; } = null!;
+        public string Password { get; set; } = null!;
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Auth\RegisterDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Auth
+{
+    public class RegisterDTO
+    {
+        public string FirstName { get; set; } = null!;
+        public string LastName { get; set; } = null!;
+        public string Email { get; set; } = null!;
+        public string Password { get; set; } = null!;
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Cart\AddToCartDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Cart
+{
+    public class AddToCartDTO
+    {
+        public int ProductId { get; set; }
+        public int Quantity { get; set; } = 1;
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Cart\CartDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Cart
+{
+    public class CartDTO
+    {
+        public int CartId { get; set; }
+        public List<CartItemDTO> Items { get; set; } = new();
+        public decimal Total { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Cart\CartItemDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Cart
+{
+    public class CartItemDTO
+    {
+        public int CartItemId { get; set; }
+        public int ProductId { get; set; }
+        public string ProductName { get; set; } = null!;
+        public string? ImageURL { get; set; }
+        public decimal UnitPrice { get; set; }
+        public int Quantity { get; set; }
+        public decimal SubTotal { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Cart\UpdateCartDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Cart
+{
+    public class UpdateCartDTO
+    {
+        public int Product { get; set; }
+        public int Quantity { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Category\CategoryDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Category
+{
+    public class CategoryDTO
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public string? ImageURL { get; set; }
+        public int ProductCount { get; set; }  // useful for UI display
+        public DateTime CreatedAt { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Category\CreateCategoryDTO.cs -----
+
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Category
+{
+    public class CreateCategoryDTO
+    {
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public IFormFile? ImageFile { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Order\OrderDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Order
+{
+    public class OrderDTO
+    {
+        public int Id { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string Status { get; set; } = null!;
+        public string? Address { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public List<OrderItemDTO> Items { get; set; } = new();
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Order\OrderItemDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Order
+{
+    public class OrderItemDTO
+    {
+        public int ProductId { get; set; }
+        public string ProductName { get; set; } = null!;
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal SubTotal { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Order\PlaceOrderDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Order
+{
+    public class PlaceOrderDTO
+    {
+        public string Address { get; set; } = null!;
+
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Product\CreateProductDTO.cs -----
+
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Product
+{
+    public class CreateProductDTO
+    {
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public int CategoryId { get; set; }
+
+        public IFormFile? ImageFile { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Product\ProductDTO.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Product
+{
+    public class ProductDTO
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public string? ImageURL { get; set; }
+        public int CategoryId { get; set; }
+        public string CategoryName { get; set; } = null!;  
+        public DateTime CreatedAt { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Product\ProductQueryParams.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Product
+{
+    public class ProductQueryParams
+    {
+        public int? CategoryId { get; set; }
+        public string? Name { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\DTOs\Product\UpdateProductDTO.cs -----
+
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.DTOs.Product
+{
+    public class UpdateProductDTO
+    {
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public int CategoryId { get; set; }
+        public IFormFile? ImageFile { get; set; }
+
+        public bool RemoveExistingImage { get; set; } = false;
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\Services\Classes\PhotoService.cs -----
+
+using Common.Image;
+using Common.Result.Ecommerce.BLL.Results;
+using Ecommerce.BLL.Services.Interfaces;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
+using System.Runtime;
+using static System.Net.Mime.MediaTypeNames;
+
+
+namespace Ecommerce.BLL.Services.Classes
+{
+    public class PhotoService : IPhotoService
+    {
+        private readonly ImageSettings _setting;
+        public PhotoService(IOptions<ImageSettings> options)
+        {
+            _setting = options.Value;
+        }
+        public async Task<Result<string>> UploadAsync(IFormFile file, string folder)
+        {
+            if (file == null || file.Length == 0)
+                return Result<string>.ValidationFail("File is empty or null.");
+
+            if (file.Length > _setting.MaxFileSize)
+                return Result<string>.ValidationFail($"File size exceeds the maximum limit of {_setting.MaxFileSize / 1024 / 1024} MB.");
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!_setting.AllowedExtensions.Contains(extension))
+                return Result<string>.ValidationFail($"File type {extension} is not allowed. Allowed types: {string.Join(", ", _setting.AllowedExtensions)}.");
+
+            try
+            {
+                var uploadFolder = Path.Combine(_setting.UploadBasePath, folder);
+                Directory.CreateDirectory(uploadFolder);
+                var uniqueName = $"{Guid.NewGuid()}{extension}";
+                var fullPath = Path.Combine(uploadFolder, uniqueName);
+
+                await using(var stream = new FileStream(fullPath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+                return Result<string>.Success($"/images/{folder}/{uniqueName}");
+            }
+            catch (Exception ex)
+            {
+
+                return Result<string>.FailOperation($"Upload failed: {ex.Message}");
+            }
+        }
+        public Task<Result> DeleteAsync(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+                return Task.FromResult(Result.Success());
+
+            try
+            {
+                var trimmed = relativePath.TrimStart('/')
+                    .Replace('/', Path.DirectorySeparatorChar);
+                var fullPath = Path.Combine(_setting.UploadBasePath, trimmed);
+
+                if (File.Exists(fullPath)) File.Delete(fullPath);
+                return Task.FromResult(Result.Success());
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(
+                    Result.FailOperation($"Delete failed: {ex.Message}"));
+            }
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\Services\Interfaces\IPhotoService.cs -----
+
+using Common.Result.Ecommerce.BLL.Results;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.Services.Interfaces
+{
+    public interface IPhotoService
+    {
+        Task<Result<string>> UploadAsync(IFormFile file, string folder);
+        Task<Result> DeleteAsync(string relativePath);
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\Validators\Auth\LoginDtoValidator .cs -----
+
+using Ecommerce.BLL.DTOs.Auth;
+using FluentValidation;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.Validators.Auth
+{
+    public class LoginDtoValidator : AbstractValidator<LoginDTO>
+    {
+        public LoginDtoValidator()
+        {
+            RuleFor(x => x.Email)
+                .NotEmpty()
+                .EmailAddress().WithMessage("Invalid email format.");
+
+            RuleFor(x => x.Password)
+                .NotEmpty().WithMessage("Password is required.");
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\Validators\Auth\RegisterDtoValidator .cs -----
+
+using Ecommerce.BLL.DTOs.Auth;
+using FluentValidation;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.Validators.Auth
+{
+    public class RegisterDtoValidator : AbstractValidator<RegisterDTO>
+    {
+        public RegisterDtoValidator()
+        {
+            RuleFor(x => x.FirstName)
+                .NotEmpty().WithMessage("First name is required.")
+                .MaximumLength(50);
+
+            RuleFor(x => x.LastName)
+                .NotEmpty().WithMessage("Last name is required.")
+                .MaximumLength(50);
+
+            RuleFor(x => x.Email)
+                .NotEmpty().WithMessage("Email is required.")
+                .EmailAddress().WithMessage("Invalid email format.");
+
+            RuleFor(x => x.Password)
+                .NotEmpty().WithMessage("Password is required.")
+                .MinimumLength(6).WithMessage("Password must be at least 6 characters.")
+                .Matches(@"[A-Z]").WithMessage("Password must contain an uppercase letter.")
+                .Matches(@"[0-9]").WithMessage("Password must contain a number.");
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\Validators\Category\CreateCategoryDtoValidator.cs -----
+
+using Ecommerce.BLL.DTOs.Category;
+using FluentValidation;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.Validators.Category
+{
+    public class CreateCategoryDtoValidator : AbstractValidator<CreateCategoryDTO>
+    {
+        public CreateCategoryDtoValidator()
+        {
+            RuleFor(x => x.Name)
+                .NotEmpty().WithMessage("Category name is required.")
+                .MinimumLength(2)
+                .MaximumLength(100);
+
+            RuleFor(x => x.Description)
+                .NotEmpty()
+                .MaximumLength(500);
+
+            When(x => x.ImageFile != null, () =>
+            {
+                RuleFor(x => x.ImageFile!)
+                    .Must(f => f.Length <= 5 * 1024 * 1024)
+                    .WithMessage("Image too large.")
+                    .Must(f =>
+                    {
+                        var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
+                        return new[] { ".jpg", ".jpeg", ".png", ".webp" }.Contains(ext);
+                    })
+                    .WithMessage("Invalid image format.");
+            });
+        }
+    }
+}
+
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\Validators\Product\CreateProductDtoValidator .cs -----
+
+using Ecommerce.BLL.DTOs.Product;
+using FluentValidation;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.Validators.Product
+{
+    public class CreateProductDtoValidator : AbstractValidator<CreateProductDTO>
+    {
+        public CreateProductDtoValidator()
+        {
+            RuleFor(p => p.Name)
+                .NotEmpty().WithMessage("Product name is required.")
+                .MinimumLength(2).WithMessage("Name must be at least 2 characters.")
+                .MaximumLength(200).WithMessage("Name cannot exceed 200 characters.");
+
+            RuleFor(x => x.Description)
+                .NotEmpty().WithMessage("Description is required.")
+                .MaximumLength(1000).WithMessage("Description cannot exceed 1000 characters.");
+
+            RuleFor(x => x.Price)
+                .GreaterThan(0).WithMessage("Price must be greater than zero.")
+                .LessThanOrEqualTo(999999.99m).WithMessage("Price is unrealistically high.");
+
+            RuleFor(x => x.Stock)
+                .GreaterThanOrEqualTo(0).WithMessage("Stock cannot be negative.");
+
+            RuleFor(x => x.CategoryId)
+                .GreaterThan(0).WithMessage("A valid category must be selected.");
+
+            When(x => x.ImageFile != null, () =>
+            {
+                RuleFor(x => x.ImageFile!)
+                    .Must(file => file.Length <= 5 * 1024 * 1024)
+                    .WithMessage("Image size cannot exceed 5MB.")
+                    .Must(file =>
+                    {
+                        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                        return allowedExtensions.Contains(ext);
+                    })
+                    .WithMessage("Only JPG, PNG, or WEBP images are allowed.");
+            });
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\Validators\Product\UpdateProductDtoValidator.cs -----
+
+using Ecommerce.BLL.DTOs.Product;
+using FluentValidation;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL.Validators.Product
+{
+    public class UpdateProductDtoValidator :  AbstractValidator<UpdateProductDTO>
+    {
+        public UpdateProductDtoValidator()
+        {
+            RuleFor(x => x.Name)
+               .NotEmpty().WithMessage("Product name is required.")
+               .MinimumLength(2)
+               .MaximumLength(200);
+
+            RuleFor(x => x.Description)
+                .NotEmpty()
+                .MaximumLength(1000);
+
+            RuleFor(x => x.Price)
+                .GreaterThan(0)
+                .LessThanOrEqualTo(999999.99m);
+
+            RuleFor(x => x.Stock)
+                .GreaterThanOrEqualTo(0);
+
+            RuleFor(x => x.CategoryId)
+                .GreaterThan(0);
+
+            When(x => x.ImageFile != null, () =>
+            {
+                RuleFor(x => x.ImageFile!)
+                    .Must(f => f.Length <= 5 * 1024 * 1024)
+                    .WithMessage("Image size cannot exceed 5MB.")
+                    .Must(f =>
+                    {
+                        var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
+                        return new[] { ".jpg", ".jpeg", ".png", ".webp" }.Contains(ext);
+                    })
+                    .WithMessage("Only JPG, PNG, or WEBP images are allowed.");
+            });
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.BLL\MappingProfiles.cs -----
+
+using AutoMapper;
+using Ecommerce.BLL.DTOs.Auth;
+using Ecommerce.BLL.DTOs.Cart;
+using Ecommerce.BLL.DTOs.Category;
+using Ecommerce.BLL.DTOs.Order;
+using Ecommerce.BLL.DTOs.Product;
+using Ecommerce.DAL;
+using Ecommerce.DAL.Data.Models;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.BLL
+{
+    public class MappingProfiles : Profile
+    {
+
+
+        public MappingProfiles()
+        {
+            MapProduct();
+            MapCategory();
+            MapCart();
+            MapOrder();
+            MapAuth();  
+        }
+
+        private void MapProduct()
+        {
+            CreateMap<Product, ProductDTO>()
+           .ForMember(dest => dest.CategoryName,
+               opt => opt.MapFrom(src => src.Category != null
+                   ? src.Category.Name
+                   : "Uncategorized"));
+
+            // -- Create DTO ? Entity ----------------------------
+            CreateMap<CreateProductDTO, Product>()
+                .ForMember(dest => dest.ImageURL, opt => opt.Ignore())
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.Category, opt => opt.Ignore());
+
+            CreateMap<UpdateProductDTO, Product>()
+                .ForMember(dest => dest.ImageURL, opt => opt.Ignore())
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.Category, opt => opt.Ignore());
+        }
+
+        private void MapCategory()
+        {
+            CreateMap<Category, CategoryDTO>()
+            .ForMember(dest => dest.ProductCount,
+                opt => opt.MapFrom(src => src.Products.Count));
+
+            CreateMap<CreateCategoryDTO, Category>()
+                .ForMember(dest => dest.ImageURL, opt => opt.Ignore())
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.Products, opt => opt.Ignore());
+        }
+
+        private void MapCart()
+        {
+            CreateMap<CartItem, CartItemDTO>()
+           .ForMember(dest => dest.CartItemId,
+               opt => opt.MapFrom(src => src.Id))
+           .ForMember(dest => dest.ProductName,
+               opt => opt.MapFrom(src => src.Product.Name))
+           .ForMember(dest => dest.ImageURL,
+               opt => opt.MapFrom(src => src.Product.ImageURL))
+           .ForMember(dest => dest.UnitPrice,
+               opt => opt.MapFrom(src => src.Product.Price))
+           .ForMember(dest => dest.SubTotal,
+               opt => opt.MapFrom(src => src.Product.Price * src.Quantity));
+
+
+            CreateMap<Cart, CartDTO>()
+         .ForMember(dest => dest.CartId,
+             opt => opt.MapFrom(src => src.Id))
+
+         .AfterMap((src, dest) =>
+         {
+             dest.Total = dest.Items.Sum(i => i.SubTotal);
+         });
+        }
+
+        private void MapOrder()
+        {
+            CreateMap<OrderItem, OrderItemDTO>()
+           .ForMember(dest => dest.ProductName,
+               opt => opt.MapFrom(src => src.Product.Name))
+           .ForMember(dest => dest.SubTotal,
+               opt => opt.MapFrom(src => src.UnitPrice * src.Quantity));
+
+            CreateMap<Order, OrderDTO>()
+                .ForMember(dest => dest.Status,
+                    opt => opt.MapFrom(src => src.Status.ToString()));
+        }
+
+        private void MapAuth() 
+        {
+            CreateMap<RegisterDTO, AppUser>()
+          .ForMember(dest => dest.UserName,
+              opt => opt.MapFrom(src => src.Email))
+          .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+          .ForMember(dest => dest.Cart, opt => opt.Ignore())
+          .ForMember(dest => dest.Orders, opt => opt.Ignore());
+        }
+    }
+}
+
+#################### Ecommerce.DAL ####################
+
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Configurations\CartConfiguration.cs -----
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.Data.Configurations
+{
+    public class CartConfiguration : IEntityTypeConfiguration<Cart>
+    {
+        public void Configure(EntityTypeBuilder<Cart> builder)
+        {
+            builder.HasOne(x => x.User)
+                .WithOne(x => x.Cart)
+                .HasForeignKey<Cart>(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasIndex(x => x.UserId)
+                .IsUnique()
+                .HasDatabaseName("IX_Carts_UserId_Unique"); ;
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Configurations\CartItemConfiguration.cs -----
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.Data.Configurations
+{
+    public class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
+    {
+        public void Configure(EntityTypeBuilder<CartItem> builder)
+        {
+            builder.HasOne(x=>x.Cart)
+                .WithMany(x=>x.Items)
+                .HasForeignKey(x=>x.CartId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            // this is relation 1:M between product and cartItem , cartItem Can have only one product but product can be in many cartItems
+            builder.HasOne(x => x.Product)
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+
+
+            builder.HasIndex(ci => new { ci.CartId, ci.ProductId })
+              .IsUnique()
+              .HasDatabaseName("IX_CartItems_CartId_ProductId");
+
+            builder.Property(ci => ci.Quantity)
+                .IsRequired()
+                .HasDefaultValue(1);
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Configurations\CategoryConfiguration.cs -----
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.Data.Configurations
+{
+    internal class CategoryConfiguration : IEntityTypeConfiguration<Category>
+    {
+        public void Configure(EntityTypeBuilder<Category> builder)
+        {
+     
+            builder.Property(c => c.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            builder.Property(c => c.Description)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            builder.Property(c => c.ImageURL)
+                .HasMaxLength(500);
+
+
+            builder.HasIndex(c => c.Name)
+                .IsUnique()
+                .HasDatabaseName("IX_Categories_Name_Unique");
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Configurations\OrderConfiguration.cs -----
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.Data.Configurations
+{
+    public class OrderConfiguration : IEntityTypeConfiguration<Order>
+    {
+        public void Configure(EntityTypeBuilder<Order> builder)
+        {
+            builder.Property(x => x.TotalAmount)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+            builder.HasOne(x => x.User)
+                .WithMany(x => x.Orders)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.Property(x => x.Address)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            builder.HasIndex(x => x.UserId)
+                .HasDatabaseName("IX_Orders_UserId");
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Configurations\OrderItemConfiguration.cs -----
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.Data.Configurations
+{
+    public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
+    {
+        public void Configure(EntityTypeBuilder<OrderItem> builder)
+        {
+            builder.HasOne(x=>x.Order)
+                .WithMany(x=>x.OrderItems)
+                .HasForeignKey(x=>x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x=>x.Product)
+                .WithMany()
+                .HasForeignKey(x=>x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Configurations\ProductConfiguration.cs -----
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.Data.Configurations
+{
+    internal class ProductConfiguration : IEntityTypeConfiguration<Product>
+    {
+        public void Configure(EntityTypeBuilder<Product> builder)
+        {
+ builder.Property(p => p.Name)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            builder.Property(p => p.Description)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            builder.Property(p => p.Price)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+
+            builder.Property(p => p.Stock)
+                .IsRequired()
+                .HasDefaultValue(0);
+
+            builder.Property(p => p.ImageURL)
+                .HasMaxLength(500);
+
+            builder.HasOne(p => p.Category)
+                .WithMany(c => c.Products)
+                .HasForeignKey(p => p.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(p => p.CategoryId)
+                .HasDatabaseName("IX_Products_CategoryId");
+        }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Context\AppDbContext.cs -----
+
+using Ecommerce.DAL.Data.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL
+{
+    public class AppDbContext : IdentityDbContext<AppUser>
+    {
+        //public AppDbContext() : base() { }
+
+        public AppDbContext(DbContextOptions<AppDbContext> Options) : base(Options) { }
+
+
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        }
+
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<Cart> Carts { get; set; }   
+        public DbSet<CartItem> CartItems { get; set; }   
+        public DbSet<Order> Orders { get; set; }   
+        public DbSet<OrderItem> OrderItems { get; set; }
+
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\AppUser.cs -----
+
+using Microsoft.AspNetCore.Identity;
+using System;
+using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
+using System.Text;
+
+namespace Ecommerce.DAL.Data.Models
+{
+    public class AppUser : IdentityUser
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public Cart? Cart { get; set; }
+        public ICollection<Order> Orders { get; set; } = new HashSet<Order>();
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\BaseEntity.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL
+{
+    public abstract class BaseEntity
+    {
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\Cart.cs -----
+
+using Ecommerce.DAL.Data.Models;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL
+{
+    public class Cart: BaseEntity
+    {
+        public string UserId { get; set; }
+        public AppUser User { get; set; } = null!;
+        public ICollection<CartItem> Items { get; set; } = new HashSet<CartItem>();
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\CartItem.cs -----
+
+namespace Ecommerce.DAL
+{
+    public class CartItem :BaseEntity
+    {
+        public int CartId { get; set; }
+        public Cart Cart { get; set; }
+        public int ProductId  { get; set; }
+        public Product Product { get; set; }
+        public int Quantity { get; set; }
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\Category.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL
+{
+    public class Category : BaseEntity
+    {
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public string? ImageURL { get; set; }
+
+
+        public ICollection<Product> Products { get; set; } = new HashSet<Product>();
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\Order.cs -----
+
+using Ecommerce.DAL.Data.Models;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL
+{
+    public class Order : BaseEntity
+    {
+        public string UserId { get; set; } = null!;
+        public AppUser User { get; set; } = null!;
+        public decimal TotalAmount  { get; set; }
+        public OrderStatus  Status { get; set; } = OrderStatus.Pending;
+        public string Address { get; set; }
+        public ICollection<OrderItem> OrderItems { get; set; } = new HashSet<OrderItem>();  
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\OrderItem.cs -----
+
+namespace Ecommerce.DAL
+{
+    public class OrderItem : BaseEntity
+    {
+        // this class for the product at the time of the order, so we need to save the price and quantity at that time, not just reference to the product
+        public int OrderId { get; set; }
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; } 
+
+        public virtual Order Order { get; set; } = null!;
+        public virtual Product Product { get; set; } = null!;
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\OrderStatus.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.Data.Models
+{
+    public enum OrderStatus
+    {
+        Pending = 0,
+        Confirmed = 1,
+        Shipped = 2,
+        Delivered = 3,
+        Cancelled = 4,  
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Data\Models\Product.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL
+{
+    public class Product : BaseEntity
+    {
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public string? ImageURL { get; set; }
+
+
+        public int CategoryId { get; set; }
+        public Category Category { get; set; } = null!;
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Repositories\Classes\GenericRepository.cs -----
+
+using Ecommerce.DAL.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+using System.Text;
+
+namespace Ecommerce.DAL.Repositories.Classes
+{
+    public class GenericRepository<TEntity> : IGenericRepository<TEntity> where TEntity : BaseEntity, new()
+    {
+        private readonly AppDbContext _context;
+
+        public GenericRepository(AppDbContext context) => _context = context;
+
+        public void Add(TEntity entity)
+            => _context.Set<TEntity>().Add(entity);
+
+        public void Delete(TEntity entity)
+            => _context.Set<TEntity>().Remove(entity);
+
+        public void Update(TEntity entity)
+            => _context.Set<TEntity>().Update(entity);  
+
+        public async Task<IEnumerable<TEntity>> GetAll(
+            Expression<Func<TEntity, bool>>? condition = null)
+        {
+            var query = _context.Set<TEntity>().AsNoTracking();
+            return condition == null
+                ? await query.ToListAsync()
+                : await query.Where(condition).ToListAsync();
+        }
+
+
+        // this include eager loading method is used when we want to load related entities along with the main entity.
+        // i think this is better than create separate methods for each entity with its related entities, because it is more flexible and reusable.
+        public async Task<IEnumerable<TEntity>> GetAll(
+            Expression<Func<TEntity, bool>>? condition,
+            params Expression<Func<TEntity, object>>[] includes)
+        {
+            var query = _context.Set<TEntity>().AsNoTracking();
+            foreach (var include in includes)
+                query = query.Include(include);
+            return condition == null
+                ? await query.ToListAsync()
+                : await query.Where(condition).ToListAsync();
+        }
+
+        public async Task<TEntity?> GetById(int id)
+            => await _context.Set<TEntity>().FindAsync(id);
+
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\Repositories\Interfaces\IGenericRepository.cs -----
+
+using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+using System.Text;
+
+namespace Ecommerce.DAL.Repositories.Interfaces
+{
+    public interface IGenericRepository<TEntity> where TEntity : BaseEntity, new()
+    {
+        Task<TEntity?> GetById(int id);
+        Task<IEnumerable<TEntity>> GetAll(Expression<Func<TEntity, bool>>? condition = null);
+
+
+        // this overload for include related entities using eager loading , expect to create a new method for each entity to include related entities using eager loading but this method is generic and can be used for all entities
+        Task<IEnumerable<TEntity>> GetAll(
+            Expression<Func<TEntity, bool>>? condition,
+            params Expression<Func<TEntity, object>>[] includes);
+        void Add(TEntity entity);
+        void Update(TEntity entity);    
+        void Delete(TEntity entity);
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\UnitOfWork\IUnitOfWork.cs -----
+
+using Ecommerce.DAL.Repositories.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.UnitOfWork
+{
+    public interface IUnitOfWork
+    {
+        IGenericRepository<TEntity> GetRepository<TEntity>() where TEntity : BaseEntity, new();
+
+        Task SaveChangesAsync();
+    }
+}
+
+----- D:\_Route\ITI\11 ASP.NET Core\ITI_ECommerceApi\Ecommerce.DAL\UnitOfWork\UnitOfWork.cs -----
+
+using Ecommerce.DAL.Repositories.Classes;
+using Ecommerce.DAL.Repositories.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Ecommerce.DAL.UnitOfWork
+{
+    public class UnitOfWork : IUnitOfWork
+    {
+        private readonly AppDbContext _context;
+        private readonly Dictionary<Type, object> _repositories = new();
+        public UnitOfWork(AppDbContext context)
+        {
+            _context = context;
+        }
+        public IGenericRepository<TEntity> GetRepository<TEntity>() where TEntity : BaseEntity, new()
+        {
+            var entityType = typeof(TEntity);
+
+            if(_repositories.TryGetValue(entityType, out var repository))
+                return (IGenericRepository<TEntity>) repository;
+
+            var newRepo = new GenericRepository<TEntity>(_context);
+
+            _repositories[entityType] = newRepo;
+
+            return newRepo;
+
+
+        }
+
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+    }
+}

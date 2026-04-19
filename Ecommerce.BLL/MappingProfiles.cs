@@ -22,7 +22,7 @@ namespace Ecommerce.BLL
             MapCategory();
             MapCart();
             MapOrder();
-            MapAuth();  
+            MapAuth();
         }
 
         private void MapProduct()
@@ -61,6 +61,14 @@ namespace Ecommerce.BLL
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.Products, opt => opt.Ignore());
+
+
+            CreateMap<UpdateCategoryDTO, Category>()
+             .ForMember(dest => dest.ImageURL, opt => opt.Ignore())
+             .ForMember(dest => dest.Id, opt => opt.Ignore())
+             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+             .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+             .ForMember(dest => dest.Products, opt => opt.Ignore());
         }
 
         private void MapCart()
@@ -101,7 +109,7 @@ namespace Ecommerce.BLL
                     opt => opt.MapFrom(src => src.Status.ToString()));
         }
 
-        private void MapAuth() 
+        private void MapAuth()
         {
             CreateMap<RegisterDTO, AppUser>()
           .ForMember(dest => dest.UserName,

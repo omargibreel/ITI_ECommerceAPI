@@ -20,7 +20,7 @@ namespace Ecommerce.DAL.Repositories.Classes
             => _context.Set<TEntity>().Remove(entity);
 
         public void Update(TEntity entity)
-            => _context.Set<TEntity>().Update(entity);  
+            => _context.Set<TEntity>().Update(entity);
 
         public async Task<IEnumerable<TEntity>> GetAll(
             Expression<Func<TEntity, bool>>? condition = null)
@@ -30,7 +30,26 @@ namespace Ecommerce.DAL.Repositories.Classes
                 ? await query.ToListAsync()
                 : await query.Where(condition).ToListAsync();
         }
-
+        public async Task<TEntity?> GetByIdNoTracking(int id,
+ params Expression<Func<TEntity, object>>[] includes)
+        {
+            var query = _context.Set<TEntity>().AsNoTracking();
+            foreach (var inc in includes) query = query.Include(inc);
+            return await query.FirstOrDefaultAsync(e => e.Id == id);
+        }
+        public async Task<(IEnumerable<TEntity> Items, int TotalCount)> GetPagedAsync(
+         Expression<Func<TEntity, bool>>? condition,
+         int pageNumber, int pageSize,
+         params Expression<Func<TEntity, object>>[] includes)
+        {
+            var query = _context.Set<TEntity>().AsNoTracking();
+            foreach (var inc in includes) query = query.Include(inc);
+            if (condition != null) query = query.Where(condition);
+            var total = await query.CountAsync();
+            var items = await query.Skip((pageNumber - 1) *
+           pageSize).Take(pageSize).ToListAsync();
+            return (items, total);
+        }
 
         // this include eager loading method is used when we want to load related entities along with the main entity.
         // i think this is better than create separate methods for each entity with its related entities, because it is more flexible and reusable.

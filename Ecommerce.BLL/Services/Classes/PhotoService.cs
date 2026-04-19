@@ -1,10 +1,10 @@
-﻿using Common.Image;
-using Common.Result.Ecommerce.BLL.Results;
+﻿using Common.Settings;
+using Common.Result;
 using Ecommerce.BLL.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System.Runtime;
-using static System.Net.Mime.MediaTypeNames;
+
 
 
 namespace Ecommerce.BLL.Services.Classes
@@ -47,24 +47,22 @@ namespace Ecommerce.BLL.Services.Classes
                 return Result<string>.FailOperation($"Upload failed: {ex.Message}");
             }
         }
-        public Task<Result> DeleteAsync(string relativePath)
+
+        public async Task<Result> DeleteAsync(string relativePath) 
         {
             if (string.IsNullOrWhiteSpace(relativePath))
-                return Task.FromResult(Result.Success());
-
+                return Result.Success();
             try
             {
-                var trimmed = relativePath.TrimStart('/')
-                    .Replace('/', Path.DirectorySeparatorChar);
+                var trimmed = relativePath.TrimStart('/').Replace('/',
+               Path.DirectorySeparatorChar);
                 var fullPath = Path.Combine(_setting.UploadBasePath, trimmed);
-
                 if (File.Exists(fullPath)) File.Delete(fullPath);
-                return Task.FromResult(Result.Success());
+                return Result.Success();
             }
             catch (Exception ex)
             {
-                return Task.FromResult(
-                    Result.FailOperation($"Delete failed: {ex.Message}"));
+                return Result.FailOperation($"Delete failed: {ex.Message}");
             }
         }
     }

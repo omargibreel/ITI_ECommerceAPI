@@ -11,7 +11,7 @@ namespace Ecommerce.DAL
         public AppUser User { get; set; } = null!;
         public decimal TotalAmount  { get; set; }
         public OrderStatus  Status { get; set; } = OrderStatus.Pending;
-        public string Address { get; set; }
+        public string Address { get; set; } = null!;
         public ICollection<OrderItem> OrderItems { get; set; } = new HashSet<OrderItem>();  
     }
 }

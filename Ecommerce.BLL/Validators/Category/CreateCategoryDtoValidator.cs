@@ -23,7 +23,7 @@ namespace Ecommerce.BLL.Validators.Category
             {
                 RuleFor(x => x.ImageFile!)
                     .Must(f => f.Length <= 5 * 1024 * 1024)
-                    .WithMessage("Image too large.")
+                    .WithMessage("Image size cannot exceed 5MB.")
                     .Must(f =>
                     {
                         var ext = Path.GetExtension(f.FileName).ToLowerInvariant();

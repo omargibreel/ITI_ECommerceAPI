@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Common.Image
+namespace Common.Settings
 {
     public class ImageSettings
     {

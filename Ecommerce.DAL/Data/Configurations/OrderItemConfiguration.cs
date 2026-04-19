@@ -10,6 +10,10 @@ namespace Ecommerce.DAL.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<OrderItem> builder)
         {
+            builder.Property(x => x.UnitPrice)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+
             builder.HasOne(x=>x.Order)
                 .WithMany(x=>x.OrderItems)
                 .HasForeignKey(x=>x.OrderId)

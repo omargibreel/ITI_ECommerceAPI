@@ -8,6 +8,8 @@ namespace Ecommerce.DAL.Repositories.Interfaces
     public interface IGenericRepository<TEntity> where TEntity : BaseEntity, new()
     {
         Task<TEntity?> GetById(int id);
+        Task<TEntity?> GetByIdNoTracking(int id,
+            params Expression<Func<TEntity, object>>[] includes);
         Task<IEnumerable<TEntity>> GetAll(Expression<Func<TEntity, bool>>? condition = null);
 
 
@@ -15,8 +17,14 @@ namespace Ecommerce.DAL.Repositories.Interfaces
         Task<IEnumerable<TEntity>> GetAll(
             Expression<Func<TEntity, bool>>? condition,
             params Expression<Func<TEntity, object>>[] includes);
+        Task<(IEnumerable<TEntity> Items, int TotalCount)> GetPagedAsync(
+            Expression<Func<TEntity, bool>>? condition,
+            int pageNumber,
+            int pageSize,
+            params Expression<Func<TEntity, object>>[] includes);
         void Add(TEntity entity);
-        void Update(TEntity entity);    
+        void Update(TEntity entity);
         void Delete(TEntity entity);
     }
 }
+

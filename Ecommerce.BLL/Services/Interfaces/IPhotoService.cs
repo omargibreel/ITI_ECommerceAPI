@@ -1,4 +1,4 @@
-﻿using Common.Result.Ecommerce.BLL.Results;
+﻿using Common.Result;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
