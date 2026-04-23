@@ -101,6 +101,12 @@ namespace Ecommerce.BLL.Services.Classes
         {
             var cat = await _uow.GetRepository<Category>().GetById(id);
             if (cat is null) return Result.NotFound("Category", id);
+
+            var hasProducts = (await _uow.GetRepository<Product>()
+                .GetAll(p => p.CategoryId == id)).Any();
+            if (hasProducts)
+                return Result.Fail(Error.Conflict("Cannot delete category because it is referenced by products."));
+
             if (cat.ImageURL != null) await _photoService.DeleteAsync(cat.ImageURL);
             _uow.GetRepository<Category>().Delete(cat);
             await _uow.SaveChangesAsync();

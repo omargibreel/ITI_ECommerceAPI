@@ -1,4 +1,6 @@
+using Ecommerce.DAL;
 using Ecommerce.DAL.Data.Models;
+using Ecommerce.DAL.Data.Seeding;
 using Microsoft.AspNetCore.Identity;
 
 namespace Ecommerce.API.Extensions
@@ -10,6 +12,7 @@ namespace Ecommerce.API.Extensions
             using var scope = app.Services.CreateScope();
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var roles = new[] { "Admin", "User" };
             foreach (var role in roles)
@@ -19,6 +22,9 @@ namespace Ecommerce.API.Extensions
                     await roleManager.CreateAsync(new IdentityRole(role));
                 }
             }
+
+            // Seed data (categories, products, and users)
+            await DataSeeder.SeedAsync(context, userManager);
 
             await SeedUserAsync(
                 userManager,

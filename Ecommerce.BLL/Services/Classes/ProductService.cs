@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Common.GeneralResuls;
 using Common.Result;
 using Common.Settings;
 using Ecommerce.BLL.DTOs.Product;
@@ -7,6 +8,7 @@ using Ecommerce.DAL;
 using Ecommerce.DAL.UnitOfWork;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 
@@ -64,6 +66,10 @@ namespace Ecommerce.BLL.Services.Classes
         }
         public async Task<Result<ProductDTO>> CreateAsync(CreateProductDTO dto)
         {
+            var category = await _uow.GetRepository<Category>().GetById(dto.CategoryId);
+            if (category is null)
+                return Result<ProductDTO>.Fail(Error.Validation("CategoryId", "Invalid category id."));
+
             var product = _mapper.Map<Product>(dto);
             product.CreatedAt = DateTime.UtcNow;
             if (dto.ImageFile != null)
@@ -83,6 +89,10 @@ namespace Ecommerce.BLL.Services.Classes
             var product = await _uow.GetRepository<Product>().GetById(id);
             if (product is null)
                 return Result<ProductDTO>.NotFound("Product", id);
+
+            var category = await _uow.GetRepository<Category>().GetById(dto.CategoryId);
+            if (category is null)
+                return Result<ProductDTO>.Fail(Error.Validation("CategoryId", "Invalid category id."));
 
             if (dto.RemoveExistingImage && product.ImageURL != null)
             {
@@ -113,6 +123,11 @@ namespace Ecommerce.BLL.Services.Classes
 
             if (product is null) 
                 return Result.NotFound("Product", id);
+
+            var isReferencedByOrders = (await _uow.GetRepository<OrderItem>()
+                .GetAll(x => x.ProductId == id)).Any();
+            if (isReferencedByOrders)
+                return Result.Fail(Error.Conflict("Cannot delete product because it is referenced by order items."));
 
             if (product.ImageURL != null) 
                 await _photoService.DeleteAsync(product.ImageURL);

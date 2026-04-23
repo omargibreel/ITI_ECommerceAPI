@@ -29,6 +29,7 @@ builder.Services.Configure<ImageSettings>(options =>
     options.MaxFileSize = 5 * 1024 * 1024;
     options.AllowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
 });
+
 builder.Services.Configure<JwtSetting>(
     builder.Configuration.GetSection("JwtSettings"));
 
